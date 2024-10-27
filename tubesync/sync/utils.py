@@ -10,15 +10,24 @@ from django.forms import ValidationError
 
 
 def validate_url(url, validator):
-    '''
-        Validate a URL against a dict of validation requirements. Returns an extracted
-        part of the URL if the URL is valid, if invalid raises a ValidationError.
-    '''
-    valid_scheme, valid_netlocs, valid_path, invalid_paths, valid_query, \
-        extract_parts = (
-            validator['scheme'], validator['domains'], validator['path_regex'],
-            validator['path_must_not_match'], validator['qs_args'],
-            validator['extract_key']
+    """
+    Validate a URL against a dict of validation requirements. Returns an extracted
+    part of the URL if the URL is valid, if invalid raises a ValidationError.
+    """
+    (
+        valid_scheme,
+        valid_netlocs,
+        valid_path,
+        invalid_paths,
+        valid_query,
+        extract_parts,
+    ) = (
+        validator["scheme"],
+        validator["domains"],
+        validator["path_regex"],
+        validator["path_must_not_match"],
+        validator["qs_args"],
+        validator["extract_key"],
     )
     url_parts = urlsplit(str(url).strip())
     url_scheme = str(url_parts.scheme).strip().lower()
@@ -26,7 +35,9 @@ def validate_url(url, validator):
         raise ValidationError(f'invalid scheme "{url_scheme}" must be "{valid_scheme}"')
     url_netloc = str(url_parts.netloc).strip().lower()
     if url_netloc not in valid_netlocs:
-        raise ValidationError(f'invalid domain "{url_netloc}" must be one of "{valid_netlocs}"')
+        raise ValidationError(
+            f'invalid domain "{url_netloc}" must be one of "{valid_netlocs}"'
+        )
     url_path = str(url_parts.path).strip()
     matches = re.findall(valid_path, url_path)
     if not matches:
@@ -38,11 +49,13 @@ def validate_url(url, validator):
     url_query_parts = parse_qs(url_query)
     for required_query in valid_query:
         if required_query not in url_query_parts:
-            raise ValidationError(f'invalid query string "{url_query}" must '
-                                  f'contain the parameter "{required_query}"')
+            raise ValidationError(
+                f'invalid query string "{url_query}" must '
+                f'contain the parameter "{required_query}"'
+            )
     extract_from, extract_param = extract_parts
-    extract_value = ''
-    if extract_from == 'path_regex':
+    extract_value = ""
+    if extract_from == "path_regex":
         try:
             submatches = matches[0]
             try:
@@ -51,31 +64,33 @@ def validate_url(url, validator):
                 pass
         except IndexError:
             pass
-    elif extract_from == 'qs_args':
+    elif extract_from == "qs_args":
         extract_value = url_query_parts[extract_param][0]
     return extract_value
 
 
 def get_remote_image(url, force_rgb=True):
     headers = {
-        'user-agent': ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                       '(KHTML, like Gecko) Chrome/69.0.3497.64 Safari/537.36')
+        "user-agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/69.0.3497.64 Safari/537.36"
+        )
     }
     r = requests.get(url, headers=headers, stream=True, timeout=60)
     r.raw.decode_content = True
     i = Image.open(r.raw)
     if force_rgb:
-        i = i.convert('RGB')
+        i = i.convert("RGB")
     return i
 
 
 def resize_image_to_height(image, width, height):
-    '''
-        Resizes an image to 'height' pixels keeping the ratio. If the resulting width
-        is larger than 'width' then crop it. If the resulting width is smaller than
-        'width' then stretch it.
-    '''
-    image = image.convert('RGB')
+    """
+    Resizes an image to 'height' pixels keeping the ratio. If the resulting width
+    is larger than 'width' then crop it. If the resulting width is smaller than
+    'width' then stretch it.
+    """
+    image = image.convert("RGB")
     ratio = image.width / image.height
     scaled_width = math.ceil(height * ratio)
     if scaled_width < width:
@@ -92,10 +107,10 @@ def resize_image_to_height(image, width, height):
 
 
 def file_is_editable(filepath):
-    '''
-        Checks that a file exists and the file is in an allowed predefined tuple of
-        directories we want to allow writing or deleting in.
-    '''
+    """
+    Checks that a file exists and the file is in an allowed predefined tuple of
+    directories we want to allow writing or deleting in.
+    """
     allowed_paths = (
         # Media item thumbnails
         os.path.commonpath([os.path.abspath(str(settings.MEDIA_ROOT))]),
@@ -114,7 +129,7 @@ def file_is_editable(filepath):
 def write_text_file(filepath, filedata):
     if not isinstance(filedata, str):
         raise ValueError(f'filedata must be a str, got "{type(filedata)}"')
-    with open(filepath, 'wt') as f:
+    with open(filepath, "wt") as f:
         bytes_written = f.write(filedata)
     return bytes_written
 
@@ -126,79 +141,79 @@ def delete_file(filepath):
 
 
 def seconds_to_timestr(seconds):
-   seconds = seconds % (24 * 3600)
-   hour = seconds // 3600
-   seconds %= 3600
-   minutes = seconds // 60
-   seconds %= 60
-   return '{:02d}:{:02d}:{:02d}'.format(hour, minutes, seconds)
+    seconds = seconds % (24 * 3600)
+    hour = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+    return "{:02d}:{:02d}:{:02d}".format(hour, minutes, seconds)
 
 
 def parse_media_format(format_dict):
-    '''
-        This parser primarily adapts the format dict returned by youtube-dl into a
-        standard form used by the matchers in matching.py. If youtube-dl changes
-        any internals, update it here.
-    '''
-    vcodec_full = format_dict.get('vcodec', '')
-    vcodec_parts = vcodec_full.split('.')
+    """
+    This parser primarily adapts the format dict returned by youtube-dl into a
+    standard form used by the matchers in matching.py. If youtube-dl changes
+    any internals, update it here.
+    """
+    vcodec_full = format_dict.get("vcodec", "")
+    vcodec_parts = vcodec_full.split(".")
     if len(vcodec_parts) > 0:
         vcodec = vcodec_parts[0].strip().upper()
     else:
         vcodec = None
-    if vcodec == 'NONE':
+    if vcodec == "NONE":
         vcodec = None
-    acodec_full = format_dict.get('acodec', '')
-    acodec_parts = acodec_full.split('.')
+    acodec_full = format_dict.get("acodec", "")
+    acodec_parts = acodec_full.split(".")
     if len(acodec_parts) > 0:
         acodec = acodec_parts[0].strip().upper()
     else:
         acodec = None
-    if acodec == 'NONE':
+    if acodec == "NONE":
         acodec = None
     try:
-        fps = int(format_dict.get('fps', 0))
+        fps = int(format_dict.get("fps", 0))
     except (ValueError, TypeError):
         fps = 0
-    height = format_dict.get('height', 0)
+    height = format_dict.get("height", 0)
     try:
         height = int(height)
     except (ValueError, TypeError):
         height = 0
-    width = format_dict.get('width', 0)
+    width = format_dict.get("width", 0)
     try:
         width = int(width)
     except (ValueError, TypeError):
         width = 0
-    format_full = format_dict.get('format_note', '').strip().upper()
-    format_str = format_full[:-2] if format_full.endswith('60') else format_full
+    format_full = format_dict.get("format_note", "").strip().upper()
+    format_str = format_full[:-2] if format_full.endswith("60") else format_full
     format_str = format_str.strip()
-    format_str = format_str[:-3] if format_str.endswith('HDR') else format_str
+    format_str = format_str[:-3] if format_str.endswith("HDR") else format_str
     format_str = format_str.strip()
-    format_str = format_str[:-2] if format_str.endswith('60') else format_str
+    format_str = format_str[:-2] if format_str.endswith("60") else format_str
     format_str = format_str.strip()
     is_hls = True
     is_dash = False
-    if 'DASH' in format_str:
+    if "DASH" in format_str:
         is_hls = False
         is_dash = True
         if height > 0:
-            format_str = f'{height}P'
+            format_str = f"{height}P"
         else:
             format_str = None
     return {
-        'id': format_dict.get('format_id', ''),
-        'format': format_str,
-        'format_verbose': format_dict.get('format', ''),
-        'height': height,
-        'width': width,
-        'vcodec': vcodec,
-        'fps': format_dict.get('fps', 0),
-        'vbr': format_dict.get('tbr', 0),
-        'acodec': acodec,
-        'abr': format_dict.get('abr', 0),
-        'is_60fps': fps > 50,
-        'is_hdr': 'HDR' in format_dict.get('format', '').upper(),
-        'is_hls': is_hls,
-        'is_dash': is_dash,
+        "id": format_dict.get("format_id", ""),
+        "format": format_str,
+        "format_verbose": format_dict.get("format", ""),
+        "height": height,
+        "width": width,
+        "vcodec": vcodec,
+        "fps": format_dict.get("fps", 0),
+        "vbr": format_dict.get("tbr", 0),
+        "acodec": acodec,
+        "abr": format_dict.get("abr", 0),
+        "is_60fps": fps > 50,
+        "is_hdr": "HDR" in format_dict.get("format", "").upper(),
+        "is_hls": is_hls,
+        "is_dash": is_dash,
     }
